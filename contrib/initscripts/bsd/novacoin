@@ -1,0 +1,68 @@
+#!/bin/sh
+
+# PROVIDE: PalyanytsyaCoin
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# PalyanytsyaCoin_enable (bool): Set to NO by default. Set this variable to YES if you want to enable PalyanytsyaCoin service.
+# PalyanytsyaCoin_config (path): Set to /usr/local/etc/PalyanytsyaCoin.conf by default.
+# PalyanytsyaCoin_user:  The user account PalyanytsyaCoin daemon runs as. It uses 'root' user by default.
+# PalyanytsyaCoin_group: The group account PalyanytsyaCoin daemon runs as. It uses 'wheel' group by default.
+# PalyanytsyaCoin_datadir (str): Default to "/var/db/PalyanytsyaCoin". Base data directory.
+
+. /etc/rc.subr
+
+name=PalyanytsyaCoin
+rcvar=PalyanytsyaCoin_enable
+
+: ${PalyanytsyaCoin_enable:=NO}
+: ${PalyanytsyaCoin_config=/usr/local/etc/PalyanytsyaCoin.conf}
+: ${PalyanytsyaCoin_datadir=/var/db/PalyanytsyaCoin}
+: ${PalyanytsyaCoin_user="root"}
+: ${PalyanytsyaCoin_group="wheel"}
+
+required_files=${PalyanytsyaCoin_config}
+command=/usr/local/bin/palyanytsyacoind
+PalyanytsyaCoin_chdir=${PalyanytsyaCoin_datadir}
+pidfile="${PalyanytsyaCoin_datadir}/palyanytsyacoind.pid"
+stop_cmd=PalyanytsyaCoin_stop
+command_args="-conf=${PalyanytsyaCoin_config} -datadir=${PalyanytsyaCoin_datadir} -daemon -pid=${pidfile}"
+start_precmd="${name}_prestart"
+
+PalyanytsyaCoin_create_datadir()
+{
+	echo "Creating data directory"
+	eval mkdir -p ${PalyanytsyaCoin_datadir}
+	[ $? -eq 0 ] && chown -R ${PalyanytsyaCoin_user}:${PalyanytsyaCoin_group} ${PalyanytsyaCoin_datadir}
+}
+
+PalyanytsyaCoin_prestart()
+{
+	if [ ! -d "${PalyanytsyaCoin_datadir}/." ]; then
+		PalyanytsyaCoin_create_datadir || return 1
+	fi
+}
+
+PalyanytsyaCoin_requirepidfile()
+{
+	if [ ! "0`check_pidfile ${pidfile} ${command}`" -gt 1 ]; then
+		echo "${name} not running? (check $pidfile)."
+		exit 1
+	fi
+}
+
+PalyanytsyaCoin_stop()
+{
+    PalyanytsyaCoin_requirepidfile
+
+	echo "Stopping ${name}."
+	eval ${command} -conf=${PalyanytsyaCoin_config} -datadir=${PalyanytsyaCoin_datadir} stop
+	wait_for_pids ${rc_pid}
+}
+
+load_rc_config $name
+run_rc_command "$1"

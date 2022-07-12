@@ -1,0 +1,11 @@
+[Unit]
+Description=PalyanytsyaCoin daemon serivce
+After=network.target
+
+[Service]
+Type=simple
+User=PalyanytsyaCoin
+ExecStart=/opt/PalyanytsyaCoin/palyanytsyacoind
+
+[Install]
+WantedBy=multi-user.target

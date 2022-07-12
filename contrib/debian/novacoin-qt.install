@@ -1,0 +1,5 @@
+PalyanytsyaCoin-qt usr/bin
+share/pixmaps/PalyanytsyaCoin32.xpm usr/share/pixmaps
+share/pixmaps/PalyanytsyaCoin80.xpm usr/share/pixmaps
+debian/PalyanytsyaCoin-qt.desktop usr/share/applications
+debian/PalyanytsyaCoin-qt.protocol usr/share/kde4/services/

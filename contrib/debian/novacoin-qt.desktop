@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=PalyanytsyaCoin
+Comment=PalyanytsyaCoin P2P Cryptocurrency
+Comment[ru]=PalyanytsyaCoin, P2P криптовалюта
+Comment[fr]=PalyanytsyaCoin, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=PalyanytsyaCoin, eşten eşe kriptografik sanal para birimi
+Exec=/usr/bin/PalyanytsyaCoin-qt
+Terminal=false
+Type=Application
+Icon=/usr/share/pixmaps/PalyanytsyaCoin80.xpm
+MimeType=x-scheme-handler/PalyanytsyaCoin;
+Categories=Office;

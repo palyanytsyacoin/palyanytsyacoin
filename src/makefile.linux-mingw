@@ -1,0 +1,215 @@
+# Copyright (c) 2009-2010 Satoshi Nakamoto
+# Distributed under the MIT/X11 software license, see the accompanying
+# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+TARGET_PLATFORM:=i686
+#TARGET_PLATFORM:=x86_64
+
+CC=$(CROSS)gcc
+CXX=$(CROSS)g++
+
+RANLIB:=$(TARGET_PLATFORM)-w64-mingw32.static-ranlib
+STRIP:=$(TARGET_PLATFORM)-w64-mingw32.static-strip
+
+USE_LEVELDB:=1
+USE_IPV6:=1
+USE_ASM:=1
+
+INCLUDEPATHS= \
+ -I"$(CURDIR)" \
+ -I"$(CURDIR)"/obj-win \
+ -I"/home/user/mxe/usr/i686-w64-mingw32.static/include" \
+
+LIBPATHS= \
+ -L"/home/user/mxe/usr/i686-w64-mingw32.static/lib"
+
+LIBS= \
+ -l boost_system-mt \
+ -l boost_filesystem-mt \
+ -l boost_program_options-mt \
+ -l boost_thread_win32-mt \
+ -l boost_chrono-mt \
+ -l db_cxx \
+ -l ssl \
+ -l crypto \
+ -l z \
+ -Wl,-Bstatic -lpthread -Wl,-Bdynamic
+
+xOPT_LEVEL=-O2
+ifeq (${USE_O3}, 1)
+	xOPT_LEVEL=-O3
+endif
+
+DEFS=-D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+
+DEBUGFLAGS=-g
+CFLAGS=$(xOPT_LEVEL) -msse2 -mssse3 -w -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -static-libgcc -static-libstdc++
+
+ifneq (${USE_IPV6}, -)
+	DEFS += -DUSE_IPV6=$(USE_IPV6)
+endif
+
+LIBS += -l mingwthrd -l kernel32 -l user32 -l gdi32 -l comdlg32 -l winspool -l winmm -l shell32 -l comctl32 -l ole32 -l oleaut32 -l uuid -l rpcrt4 -l advapi32 -l ws2_32 -l mswsock -l shlwapi
+
+# TODO: make the mingw builds smarter about dependencies, like the linux/osx builds are
+HEADERS = $(wildcard *.h)
+
+OBJS-win= \
+	obj-win/groestl.o \
+	obj-win/blake.o \
+	obj-win/bmw.o \
+	obj-win/skein.o \
+	obj-win/keccak.o \
+	obj-win/shavite.o \
+	obj-win/jh.o \
+	obj-win/luffa.o \
+	obj-win/cubehash.o \
+	obj-win/echo.o \
+	obj-win/simd.o \
+	obj-win/alert.o \
+	obj-win/version.o \
+	obj-win/checkpoints.o \
+	obj-win/netbase.o \
+	obj-win/addrman.o \
+	obj-win/crypter.o \
+	obj-win/base58.o \
+	obj-win/key.o \
+	obj-win/db.o \
+	obj-win/init.o \
+	obj-win/irc.o \
+	obj-win/keystore.o \
+	obj-win/main.o \
+	obj-win/miner.o \
+	obj-win/net.o \
+	obj-win/ntp.o \
+	obj-win/stun.o \
+	obj-win/protocol.o \
+	obj-win/bitcoinrpc.o \
+	obj-win/rpcdump.o \
+	obj-win/rpcnet.o \
+	obj-win/rpcmining.o \
+	obj-win/rpcwallet.o \
+	obj-win/rpcblockchain.o \
+	obj-win/rpcrawtransaction.o \
+	obj-win/script.o \
+	obj-win/sync.o \
+	obj-win/util.o \
+	obj-win/wallet.o \
+	obj-win/walletdb.o \
+	obj-win/noui.o \
+	obj-win/kernel.o \
+	obj-win/kernel_worker.o
+
+all: palyanytsyacoind.exe
+
+#
+# LevelDB support
+#
+ifeq (${USE_LEVELDB}, 1)
+LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
+DEFS += -I"$(CURDIR)/leveldb/include" -DUSE_LEVELDB
+DEFS += -I"$(CURDIR)/leveldb/helpers"
+OBJS-win += obj-win/txdb-leveldb.o
+leveldb/libleveldb.a:
+	@echo "Building LevelDB ..." && cd leveldb && CC=$(CC) CXX=$(CXX) TARGET_OS=OS_WINDOWS_CROSSCOMPILE CXXFLAGS="-I$(INCLUDEPATHS)" LDFLAGS="-L$(LIBPATHS)" $(MAKE) libleveldb.a libmemenv.a && $(RANLIB) libleveldb.a && $(RANLIB) libmemenv.a && cd ..
+obj-win/txdb-leveldb.o: leveldb/libleveldb.a
+else
+OBJS-win += obj-win/txdb-bdb.o
+endif
+
+ifeq (${USE_ASM}, 1)
+# Assembler implementation
+OBJS-win += crypto/scrypt/asm/obj-win/scrypt-arm.o crypto/scrypt/asm/obj-win/scrypt-x86.o crypto/scrypt/asm/obj-win/scrypt-x86_64.o crypto/scrypt/asm/obj-win/asm-wrapper.o
+OBJS-win += crypto/sha2/asm/obj-win/sha2-arm.o crypto/sha2/asm/obj-win/sha2-x86.o crypto/sha2/asm/obj-win/sha2-x86_64.o
+
+crypto/scrypt/asm/obj-win/scrypt-x86.o: crypto/scrypt/asm/scrypt-x86.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/scrypt/asm/obj-win/scrypt-x86_64.o: crypto/scrypt/asm/scrypt-x86_64.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/scrypt/asm/obj-win/scrypt-arm.o: crypto/scrypt/asm/scrypt-arm.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/scrypt/asm/obj-win/asm-wrapper.o: crypto/scrypt/asm/asm-wrapper.cpp
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/sha2/asm/obj-win/sha2-x86.o: crypto/sha2/asm/sha2-x86.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/sha2/asm/obj-win/sha2-x86_64.o: crypto/sha2/asm/sha2-x86_64.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+crypto/sha2/asm/obj-win/sha2-arm.o: crypto/sha2/asm/sha2-arm.S
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+
+DEFS += -DUSE_ASM
+else
+ifeq  (${USE_SSE2}, 1)
+# Intrinsic implementation
+DEFS += -DUSE_SSE2
+OBJS-win += crypto/scrypt/intrin/obj-win/scrypt-sse2.o
+
+crypto/scrypt/intrin/obj-win/scrypt-sse2.o: crypto/scrypt/intrin/scrypt-sse2.cpp $(HEADERS)
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+else
+ifneq (${USE_ASM}, 1)
+# Generic implementation
+OBJS-win += crypto/scrypt/generic/obj-win/scrypt-generic.o
+
+crypto/scrypt/generic/obj-win/scrypt-generic.o: crypto/scrypt/generic/scrypt-generic.cpp
+	$(CXX) -c $(CFLAGS) -MMD -o $@ $<
+endif
+endif
+endif
+
+
+
+obj-win/build.h: FORCE
+	/bin/sh ../share/genbuild.sh obj-win/build.h
+version.cpp: obj-win/build.h
+DEFS += -DHAVE_BUILD_INFO
+
+obj-win/scrypt-x86.o: scrypt-x86.S
+	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
+obj-win/scrypt-x86_64.o: scrypt-x86_64.S
+	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
+obj-win/scrypt-arm.o: scrypt-arm.S
+	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
+	
+obj-win/%.o: %.c
+	$(CXX) -c $(xCXXFLAGS) -fpermissive -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	  -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  
+	rm -f $(@:%.o=%.d)
+
+obj-win/%.o: %.cpp $(HEADERS)
+	$(CXX) -c $(CFLAGS) -o $@ $<
+
+palyanytsyacoind.exe: $(OBJS-win:obj-win/%=obj-win/%)
+	$(CXX) $(CFLAGS) $(LDFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS) -lshlwapi
+	$(STRIP) palyanytsyacoind.exe
+
+clean:
+	-rm -f palyanytsyacoind.exe
+	-rm -f obj-win/*.o
+	-rm -f obj-win/*.P
+	-rm -f obj-win/*.d
+	-rm -f crypto/scrypt/asm/obj-win/*.o
+	-rm -f crypto/scrypt/asm/obj-win/*.P
+	-rm -f crypto/scrypt/asm/obj-win/*.d
+	-rm -f crypto/scrypt/intrin/obj-win/*.o
+	-rm -f crypto/scrypt/intrin/obj-win/*.P
+	-rm -f crypto/scrypt/intrin/obj-win/*.d
+	-rm -f crypto/scrypt/generic/obj-win/*.o
+	-rm -f crypto/scrypt/generic/obj-win/*.P
+	-rm -f crypto/scrypt/generic/obj-win/*.d
+	-rm -f crypto/sha2/asm/obj-win/*.o
+	-rm -f crypto/sha2/asm/obj-win/*.P
+	-rm -f crypto/sha2/asm/obj-win/*.d
+	-rm -f obj-win/build.h 
+
+FORCE:
