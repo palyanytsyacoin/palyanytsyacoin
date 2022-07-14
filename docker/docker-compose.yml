@@ -1,0 +1,11 @@
+version: "3.7"
+
+services:
+  debian:
+    build:
+      context: ..
+    image: pacoin_debian
+    container_name: pacoin_debian
+    ports:
+      - 22223:22223
+      - 22224:22224
