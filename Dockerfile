@@ -13,3 +13,7 @@ WORKDIR /pacoin
 ADD ./src /pacoin/src
 ADD ./contrib /pacoin/contrib
 ADD ./share /pacoin/share
+ADD ./qt.pro /pacoin/qt.pro
+
+RUN qmake
+RUN make -j2
