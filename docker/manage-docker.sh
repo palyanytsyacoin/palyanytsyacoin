@@ -1,5 +1,10 @@
 #!/bin/bash
 
+CURRENT=$(pwd)
+DIR=$(dirname "${BASH_SOURCE[0]}")/..
+cd "$DIR"
+DIR=$(pwd)
+cd "$CURRENT"
 test -z "$DOCKER_ID_FIELD" && export DOCKER_ID_FIELD='{{.ID}}'
 test -z "$DOCKER_COMPOSE_SERVICE" && export DOCKER_COMPOSE_SERVICE=debian
 
@@ -28,6 +33,10 @@ function stop() {
     docker compose down
 }
 
+function get-bash-source() {
+  cat "$DIR/Dockerfile" | grep ^RUN | sed 's/RUN //g'
+}
+
 case "$1" in
     remove-images)
         remove-containers
@@ -41,6 +50,10 @@ case "$1" in
     up)
         build
         docker compose up -d
+    ;;
+
+    get-bash-source)
+        get-bash-source
     ;;
 
     *)

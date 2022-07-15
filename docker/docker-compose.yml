@@ -2,8 +2,7 @@ version: "3.7"
 
 services:
   debian:
-    build:
-      context: ..
+    build: ..
     image: pacoin_debian
     container_name: pacoin_debian
     environment:
@@ -14,11 +13,19 @@ services:
 
   xserver:
     image: pacoin_debian
+    build: ..
+    networks:
+      - pacoin
     environment:
       DEBIAN_FRONTEND: noninteractive
-      DISPLAY: $DISPLAY
+      DISPLAY: $(hostname)$DISPLAY
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
+
+networks:
+  pacoin:
+    driver: bridge
+    name: pacoin
 
 volumes:
   xsocket:
