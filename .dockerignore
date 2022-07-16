@@ -13,6 +13,8 @@
 *.rej
 /.idea/
 /.vscode/
+/docker
+/doc
 /res
 /wallet
 #compilation and Qt preprocessor part
